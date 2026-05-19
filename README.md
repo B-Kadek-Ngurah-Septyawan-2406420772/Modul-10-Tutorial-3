@@ -83,3 +83,70 @@ Kreativitas difokuskan pada pengalaman pengguna: status online lebih mudah dibac
 Pada screenshot broadcast, dua browser dibuka berdampingan dengan user `Awan1` dan `Awan2`.
 Masing-masing browser menampilkan label `You` pada user yang sedang aktif di browser tersebut.
 Pesan dari `Awan1` dan `Awan2` tetap terkirim melalui WebSocket server dan muncul di client lain, sehingga perubahan visual tidak merusak fungsi broadcast chat.
+
+## Bonus: Rust WebSocket server for YewChat
+
+Pada bagian bonus ini, saya membuat server WebSocket baru menggunakan Rust di folder `rust_websocket_server`.
+Server ini menggantikan server JavaScript/TypeScript dari `SimpleWebsocketServer`, tetapi tetap memakai protokol pesan yang sama dengan YewChat.
+Karena YewChat mengirim dan menerima data dalam bentuk JSON, server Rust juga membaca field `messageType`, `data`, dan `dataArray` dengan format camelCase.
+
+Server Rust dapat dijalankan dengan perintah berikut:
+
+```powershell
+cd rust_websocket_server
+cargo run
+```
+
+Frontend YewChat tetap dijalankan seperti sebelumnya:
+
+```powershell
+cd YewChat
+npm start
+```
+
+Server Rust berjalan pada port yang sama, yaitu `8080`, sehingga client tetap dapat menggunakan URL WebSocket:
+
+```text
+ws://127.0.0.1:8080
+```
+
+Ketika client mengirim pesan `register`, server Rust menyimpan pasangan alamat koneksi dan username.
+Setelah itu, server mengirim broadcast daftar user aktif dengan format:
+
+```json
+{"messageType":"users","data":null,"dataArray":["Awan1","Awan2"]}
+```
+
+Ketika client mengirim pesan `message`, server Rust mencari username pengirim, membuat payload pesan berisi `from`, `message`, dan `time`, lalu membroadcast pesan tersebut ke semua client.
+Format pesan yang dikirim server adalah:
+
+```json
+{"messageType":"message","data":"{\"from\":\"Awan1\",\"message\":\"hello from rust\",\"time\":1779184279234}","dataArray":null}
+```
+
+Hasil uji server Rust:
+
+```text
+Rust YewChat WebSocket server listening on port 8080
+web client connected from 127.0.0.1:57550
+127.0.0.1:57550 registered as Awan1
+web client connected from 127.0.0.1:57551
+127.0.0.1:57551 registered as Awan2
+from Awan1: hello from rust
+127.0.0.1:57550 disconnected
+127.0.0.1:57551 disconnected
+```
+
+Hasil uji WebSocket client:
+
+```text
+c1 {"messageType":"users","data":null,"dataArray":["Awan1"]}
+c2 {"messageType":"users","data":null,"dataArray":["Awan1","Awan2"]}
+c1 {"messageType":"users","data":null,"dataArray":["Awan1","Awan2"]}
+c1 {"messageType":"message","data":"{\"from\":\"Awan1\",\"message\":\"hello from rust\",\"time\":1779184279234}","dataArray":null}
+c2 {"messageType":"message","data":"{\"from\":\"Awan1\",\"message\":\"hello from rust\",\"time\":1779184279234}","dataArray":null}
+```
+
+Menurut saya, versi JavaScript lebih cepat dibuat karena library `ws` sederhana dan format JSON langsung cocok dengan ekosistem web.
+Namun, versi Rust lebih saya sukai untuk server yang akan dikembangkan lebih serius karena tipe datanya lebih eksplisit, error handling lebih terstruktur, dan ownership membantu mengurangi kesalahan pada shared state.
+Untuk tugas ini, Rust server berhasil menjadi pengganti server JavaScript karena YewChat tetap bisa menerima daftar user dan pesan broadcast dengan format yang sama.
